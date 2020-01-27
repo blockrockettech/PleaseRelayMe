@@ -9,6 +9,8 @@
   "devDependencies": {
     "@0x/contracts-utils": "^3.1.1",
     "@openzeppelin/contracts": "^2.4.0",
-    "@truffle/hdwallet-provider": "^1.0.29"
+    "@truffle/hdwallet-provider": "^1.0.29",
+    "truffle-flattener": "^1.4.2",
+    "truffle-plugin-verify": "^0.3.8"
   }
 }

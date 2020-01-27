@@ -1,7 +1,7 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 
-const MNEMONIC = process.env.PROTOTYPE_MNEMONIC || '';
-const INFURA_KEY = process.env.PROTOTYPE_INFURA_KEY || '';
+const MNEMONIC = process.env.PROTOTYPE_BR_KEY || '';
+const INFURA_KEY = process.env.PROTOTYPE_BR_INFURA_KEY || '';
 const ETHERSCAN_KEY = process.env.ETHERSCAN_KEY || '';
 
 module.exports = {
@@ -64,6 +64,15 @@ module.exports = {
             gasPrice: 25000000000, // 25 Gwei. default = 100 gwei = 100000000000
             skipDryRun: true
         },
+        kovan: {
+            provider: function () {
+                return new HDWalletProvider(MNEMONIC, `https://kovan.infura.io/v3/${INFURA_KEY}`);
+            },
+            network_id: 42,
+            gas: 7000000, // default = 4712388
+            gasPrice: 12000000000, // 12 Gwei. default = 100 gwei = 100000000000
+            skipDryRun: true
+        },
         live: {
             provider: function () {
                 return new HDWalletProvider(MNEMONIC, `https://mainnet.infura.io/v3/${INFURA_KEY}`);
@@ -76,8 +85,7 @@ module.exports = {
         },
     },
     plugins: [
-        'truffle-plugin-verify',
-        'solidity-coverage'
+        'truffle-plugin-verify'
     ],
     verify: {
         preamble: "Author: Blockrocket.tech.\n"
