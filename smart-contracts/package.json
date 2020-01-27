@@ -1,0 +1,14 @@
+{
+  "name": "smart-contracts",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "truffle test --network development"
+  },
+  "author": "BlockRocket.tech",
+  "license": "MIT",
+  "devDependencies": {
+    "@0x/contracts-utils": "^3.1.1",
+    "@openzeppelin/contracts": "^2.4.0",
+    "@truffle/hdwallet-provider": "^1.0.29"
+  }
+}
