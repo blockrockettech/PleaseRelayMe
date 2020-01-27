@@ -62,7 +62,7 @@ contract RelayHub is IRelayHub {
     }
 
     mapping(address => Relay) private relays;
-    mapping(address => uint256) private balances;
+    mapping(address => uint256) internal balances;
 
     string public version = "1.0.0";
 
