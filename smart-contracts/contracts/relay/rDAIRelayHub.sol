@@ -10,7 +10,6 @@ contract rDAIRelayHub is RelayHub {
     using SafeMath for uint256;
 
     address ETH_PROXY = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address KYBER_NETWORK_PROXY_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     function refuelFor(address target, IRToken rDai, IERC20 dai, KyberNetworkInterface kyber) external {
         // 1. Claim earned rDAI interest
@@ -24,7 +23,7 @@ contract rDAIRelayHub is RelayHub {
 
         // 3. TODO: Swap DAI for ETH
         uint256 daiBalance = dai.balanceOf(self);
-        dai.approve(KYBER_NETWORK_PROXY_ADDRESS, daiBalance);
+        dai.approve(address(kyber), daiBalance);
 
         (uint expectedDaiEthExhangeRate, ) = kyber.getExpectedRate(dai, IERC20(ETH_PROXY), daiBalance);
         uint256 ethReceivedFromDaiSale = kyber.tradeWithHint(
