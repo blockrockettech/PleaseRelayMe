@@ -10,6 +10,13 @@ import "./InterestPaymentAccount.sol";
 contract rDAIRelayHub is RelayHub {
     using SafeMath for uint256;
 
+    event DappSetup(
+        address indexed dapp,
+        address indexed ipa,
+        address indexed caller,
+        uint256 principleAmount
+    );
+
     IERC20 public DAI;
     IRToken public rDAI;
 
@@ -19,9 +26,11 @@ contract rDAIRelayHub is RelayHub {
     mapping(address => InterestPaymentAccount) public dappToIPA;
 
     // Default payable
-    receive() external payable { }
+    receive() external payable {}
 
     function setupDapp(address dapp, uint256 principleAmount) external {
+        require(address(dappToIPA[dapp]) == address(0), "An Interest Payment Account already exists for this dapp");
+        require(DAI.allowance(msg.sender, address(this)) >= principleAmount, "Not enough DAI allowance");
         DAI.transferFrom(msg.sender, address(this), principleAmount);
 
         //---Counterfactually determine the deployment address of the dapp's Interest Payment Account (IPA)
@@ -45,9 +54,12 @@ contract rDAIRelayHub is RelayHub {
 
         //---Use sugar over CREATE2 to counterfactually instantiate the contract:
         InterestPaymentAccount ipa = new InterestPaymentAccount{salt: salt}();
+        require(ipaAddress == address(ipa), "Counterfactual address mismatch on instantiation of Interest Payment Account");
 
         //---Store the counterfactual IPA in `dappToIPA` mapping
         dappToIPA[dapp] = ipa;
+
+        emit DappSetup(dapp, ipaAddress, msg.sender, principleAmount);
     }
 
     function refuelFor(address dapp) external {
