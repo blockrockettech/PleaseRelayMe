@@ -1,6 +1,6 @@
-pragma solidity ^0.5.5;
+pragma solidity 0.6.2;
 
-import "@0x/contracts-utils/contracts/src/LibBytes.sol";
+import "./LibBytes.sol";
 
 library GsnUtils {
 

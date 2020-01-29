@@ -1,12 +1,12 @@
-pragma solidity ^0.5.5;
+pragma solidity 0.6.2;
 
 import "./IRelayHub.sol";
 import "./IRelayRecipient.sol";
 import "./GsnUtils.sol";
 import "./RLPReader.sol";
-import "@0x/contracts-utils/contracts/src/LibBytes.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/cryptography/ECDSA.sol";
+import "./LibBytes.sol";
+import "../SafeMath.sol";
+import "./ECDSA.sol";
 
 contract RelayHub is IRelayHub {
 
@@ -66,7 +66,7 @@ contract RelayHub is IRelayHub {
 
     string public version = "1.0.0";
 
-    function stake(address relay, uint256 unstakeDelay) external payable {
+    function stake(address relay, uint256 unstakeDelay) external payable override {
         if (relays[relay].state == RelayState.Unknown) {
             require(msg.sender != relay, "relay cannot stake for itself");
             relays[relay].owner = msg.sender;
@@ -98,7 +98,7 @@ contract RelayHub is IRelayHub {
         emit Staked(relay, relays[relay].stake, relays[relay].unstakeDelay);
     }
 
-    function registerRelay(uint256 transactionFee, string memory url) public {
+    function registerRelay(uint256 transactionFee, string memory url) public override {
         address relay = msg.sender;
 
         require(relay == tx.origin, "Contracts cannot register as relays");
@@ -112,7 +112,7 @@ contract RelayHub is IRelayHub {
         emit RelayAdded(relay, relays[relay].owner, transactionFee, relays[relay].stake, relays[relay].unstakeDelay, url);
     }
 
-    function removeRelayByOwner(address relay) public {
+    function removeRelayByOwner(address relay) public override {
         require(relays[relay].owner == msg.sender, "not owner");
         require((relays[relay].state == RelayState.Staked) || (relays[relay].state == RelayState.Registered), "already removed");
 
@@ -123,7 +123,7 @@ contract RelayHub is IRelayHub {
         emit RelayRemoved(relay, relays[relay].unstakeTime);
     }
 
-    function unstake(address relay) public {
+    function unstake(address relay) public override {
         require(canUnstake(relay), "canUnstake failed");
         require(relays[relay].owner == msg.sender, "not owner");
 
@@ -136,7 +136,7 @@ contract RelayHub is IRelayHub {
         emit Unstaked(relay, amount);
     }
 
-    function getRelay(address relay) external view returns (uint256 totalStake, uint256 unstakeDelay, uint256 unstakeTime, address payable owner, RelayState state) {
+    function getRelay(address relay) external view override returns (uint256 totalStake, uint256 unstakeDelay, uint256 unstakeTime, address payable owner, RelayState state) {
         totalStake = relays[relay].stake;
         unstakeDelay = relays[relay].unstakeDelay;
         unstakeTime = relays[relay].unstakeTime;
@@ -151,7 +151,7 @@ contract RelayHub is IRelayHub {
      * to deposit more, otherwise the contract won't be able to receive relayed calls.
      * Unused deposited can be withdrawn with `withdraw()`
      */
-    function depositFor(address target) public payable {
+    function depositFor(address target) public payable override {
         uint256 amount = msg.value;
         require(amount <= maximumRecipientDeposit, "deposit too big");
 
@@ -161,7 +161,7 @@ contract RelayHub is IRelayHub {
     }
 
     //check the deposit balance of a contract.
-    function balanceOf(address target) external view returns (uint256) {
+    function balanceOf(address target) external view override returns (uint256) {
         return balances[target];
     }
 
@@ -172,7 +172,7 @@ contract RelayHub is IRelayHub {
      * note that while everyone can `depositFor()` a contract, only
      * the contract itself can withdraw its funds.
      */
-    function withdraw(uint256 amount, address payable dest) public {
+    function withdraw(uint256 amount, address payable dest) public override {
         address payable account = msg.sender;
         require(balances[account] >= amount, "insufficient funds");
 
@@ -182,7 +182,7 @@ contract RelayHub is IRelayHub {
         emit Withdrawn(account, dest, amount);
     }
 
-    function getNonce(address from) view external returns (uint256) {
+    function getNonce(address from) view external override returns (uint256) {
         return nonces[from];
     }
 
@@ -203,7 +203,7 @@ contract RelayHub is IRelayHub {
         bytes memory signature,
         bytes memory approvalData
     )
-    public view returns (uint256 status, bytes memory recipientContext)
+    public view override returns (uint256 status, bytes memory recipientContext)
     {
         // Verify the sender's signature on the transaction - note that approvalData is *not* signed
         {
@@ -267,7 +267,7 @@ contract RelayHub is IRelayHub {
         bytes memory signature,
         bytes memory approvalData
     )
-    public
+    public override
     {
         uint256 initialGas = gasleft();
 
@@ -439,11 +439,11 @@ contract RelayHub is IRelayHub {
         }
     }
 
-    function requiredGas(uint256 relayedCallStipend) public view returns (uint256) {
+    function requiredGas(uint256 relayedCallStipend) public view override returns (uint256) {
         return gasOverhead + gasReserve + acceptRelayedCallMaxGas + preRelayedCallMaxGas + postRelayedCallMaxGas + relayedCallStipend;
     }
 
-    function maxPossibleCharge(uint256 relayedCallStipend, uint256 gasPrice, uint256 transactionFee) public view returns (uint256) {
+    function maxPossibleCharge(uint256 relayedCallStipend, uint256 gasPrice, uint256 transactionFee) public view override returns (uint256) {
         return calculateCharge(requiredGas(relayedCallStipend), gasPrice, transactionFee);
     }
 
@@ -472,7 +472,7 @@ contract RelayHub is IRelayHub {
 
     }
 
-    function penalizeRepeatedNonce(bytes memory unsignedTx1, bytes memory signature1, bytes memory unsignedTx2, bytes memory signature2) public {
+    function penalizeRepeatedNonce(bytes memory unsignedTx1, bytes memory signature1, bytes memory unsignedTx2, bytes memory signature2) public override {
         // Can be called by anyone.
         // If a relay attacked the system by signing multiple transactions with the same nonce (so only one is accepted), anyone can grab both transactions from the blockchain and submit them here.
         // Check whether unsignedTx1 != unsignedTx2, that both are signed by the same address, and that unsignedTx1.nonce == unsignedTx2.nonce.  If all conditions are met, relay is considered an "offending relay".
@@ -498,7 +498,7 @@ contract RelayHub is IRelayHub {
         penalize(addr1);
     }
 
-    function penalizeIllegalTransaction(bytes memory unsignedTx, bytes memory signature) public {
+    function penalizeIllegalTransaction(bytes memory unsignedTx, bytes memory signature) public override {
         Transaction memory decodedTx = decodeTransaction(unsignedTx);
         if (decodedTx.to == address(this)) {
             bytes4 selector = GsnUtils.getMethodSig(decodedTx.data);

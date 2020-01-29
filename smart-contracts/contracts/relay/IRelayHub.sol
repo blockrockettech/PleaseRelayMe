@@ -1,6 +1,6 @@
-pragma solidity ^0.5.5;
+pragma solidity 0.6.2;
 
-contract IRelayHub {
+abstract contract IRelayHub {
     // Relay management
 
     // Add stake to a relay and sets its unstakeDelay.
@@ -10,7 +10,7 @@ contract IRelayHub {
     // All Ether in this function call will be added to the relay's stake.
     // Its unstake delay will be assigned to unstakeDelay, but the new value must be greater or equal to the current one.
     // Emits a Staked event.
-    function stake(address relayaddr, uint256 unstakeDelay) external payable;
+    function stake(address relayaddr, uint256 unstakeDelay) external payable virtual;
 
     // Emited when a relay's stake or unstakeDelay are increased
     event Staked(address indexed relay, uint256 stake, uint256 unstakeDelay);
@@ -20,7 +20,7 @@ contract IRelayHub {
     // Emits a RelayAdded event.
     // This function can be called multiple times, emitting new RelayAdded events. Note that the received transactionFee
     // is not enforced by relayCall.
-    function registerRelay(uint256 transactionFee, string memory url) public;
+    function registerRelay(uint256 transactionFee, string memory url) public virtual;
 
     // Emitted when a relay is registered or re-registerd. Looking at these events (and filtering out RelayRemoved
     // events) lets a client discover the list of available relays.
@@ -29,7 +29,7 @@ contract IRelayHub {
     // Removes (deregisters) a relay. Unregistered (but staked for) relays can also be removed. Can only be called by
     // the owner of the relay. After the relay's unstakeDelay has elapsed, unstake will be callable.
     // Emits a RelayRemoved event.
-    function removeRelayByOwner(address relay) public;
+    function removeRelayByOwner(address relay) public virtual;
 
     // Emitted when a relay is removed (deregistered). unstakeTime is the time when unstake will be callable.
     event RelayRemoved(address indexed relay, uint256 unstakeTime);
@@ -37,7 +37,7 @@ contract IRelayHub {
     // Deletes the relay from the system, and gives back its stake to the owner. Can only be called by the relay owner,
     // after unstakeDelay has elapsed since removeRelayByOwner was called.
     // Emits an Unstaked event.
-    function unstake(address relay) public;
+    function unstake(address relay) public virtual;
 
     // Emitted when a relay is unstaked for, including the returned stake.
     event Unstaked(address indexed relay, uint256 stake);
@@ -51,25 +51,25 @@ contract IRelayHub {
     }
 
     // Returns a relay's status. Note that relays can be deleted when unstaked or penalized.
-    function getRelay(address relay) external view returns (uint256 totalStake, uint256 unstakeDelay, uint256 unstakeTime, address payable owner, RelayState state);
+    function getRelay(address relay) external view virtual returns (uint256 totalStake, uint256 unstakeDelay, uint256 unstakeTime, address payable owner, RelayState state);
 
     // Balance management
 
     // Deposits ether for a contract, so that it can receive (and pay for) relayed transactions. Unused balance can only
     // be withdrawn by the contract itself, by callingn withdraw.
     // Emits a Deposited event.
-    function depositFor(address target) public payable;
+    function depositFor(address target) public payable virtual;
 
     // Emitted when depositFor is called, including the amount and account that was funded.
     event Deposited(address indexed recipient, address indexed from, uint256 amount);
 
     // Returns an account's deposits. These can be either a contnract's funds, or a relay owner's revenue.
-    function balanceOf(address target) external view returns (uint256);
+    function balanceOf(address target) external view virtual returns (uint256);
 
     // Withdraws from an account's balance, sending it back to it. Relay owners call this to retrieve their revenue, and
     // contracts can also use it to reduce their funding.
     // Emits a Withdrawn event.
-    function withdraw(uint256 amount, address payable dest) public;
+    function withdraw(uint256 amount, address payable dest) public virtual;
 
     // Emitted when an account withdraws funds from RelayHub.
     event Withdrawn(address indexed account, address indexed dest, uint256 amount);
@@ -93,7 +93,7 @@ contract IRelayHub {
         uint256 nonce,
         bytes memory signature,
         bytes memory approvalData
-    ) public view returns (uint256 status, bytes memory recipientContext);
+    ) public view virtual returns (uint256 status, bytes memory recipientContext);
 
     // Preconditions for relaying, checked by canRelay and returned as the corresponding numeric values.
     enum PreconditionCheck {
@@ -139,7 +139,7 @@ contract IRelayHub {
         uint256 nonce,
         bytes memory signature,
         bytes memory approvalData
-    ) public;
+    ) public virtual;
 
     // Emitted when an attempt to relay a call failed. This can happen due to incorrect relayCall arguments, or the
     // recipient not accepting the relayed call. The actual relayed call was not executed, and the recipient not charged.
@@ -164,10 +164,10 @@ contract IRelayHub {
 
     // Returns how much gas should be forwarded to a call to relayCall, in order to relay a transaction that will spend
     // up to relayedCallStipend gas.
-    function requiredGas(uint256 relayedCallStipend) public view returns (uint256);
+    function requiredGas(uint256 relayedCallStipend) public view virtual returns (uint256);
 
     // Returns the maximum recipient charge, given the amount of gas forwarded, gas price and relay fee.
-    function maxPossibleCharge(uint256 relayedCallStipend, uint256 gasPrice, uint256 transactionFee) public view returns (uint256);
+    function maxPossibleCharge(uint256 relayedCallStipend, uint256 gasPrice, uint256 transactionFee) public view virtual returns (uint256);
 
     // Relay penalization. Any account can penalize relays, removing them from the system immediately, and rewarding the
     // reporter with half of the relay's stake. The other half is burned so that, even if the relay penalizes itself, it
@@ -176,12 +176,12 @@ contract IRelayHub {
     // Penalize a relay that signed two transactions using the same nonce (making only the first one valid) and
     // different data (gas price, gas limit, etc. may be different). The (unsigned) transaction data and signature for
     // both transactions must be provided.
-    function penalizeRepeatedNonce(bytes memory unsignedTx1, bytes memory signature1, bytes memory unsignedTx2, bytes memory signature2) public;
+    function penalizeRepeatedNonce(bytes memory unsignedTx1, bytes memory signature1, bytes memory unsignedTx2, bytes memory signature2) public virtual;
 
     // Penalize a relay that sent a transaction that didn't target RelayHub's registerRelay or relayCall.
-    function penalizeIllegalTransaction(bytes memory unsignedTx, bytes memory signature) public;
+    function penalizeIllegalTransaction(bytes memory unsignedTx, bytes memory signature) public virtual;
 
     event Penalized(address indexed relay, address sender, uint256 amount);
 
-    function getNonce(address from) view external returns (uint256);
+    function getNonce(address from) view external virtual returns (uint256);
 }
