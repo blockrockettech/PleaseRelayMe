@@ -4,6 +4,7 @@ import "../SafeMath.sol";
 import "../IERC20.sol";
 import "./RelayHub.sol";
 import "../rDAI/IRToken.sol";
+import "../liquidity/ILiquidityProvider.sol";
 import "./InterestPaymentAccount.sol";
 
 contract rDAIRelayHub is RelayHub {
@@ -11,6 +12,8 @@ contract rDAIRelayHub is RelayHub {
 
     IERC20 public DAI;
     IRToken public rDAI;
+
+    ILiquidityProvider public liquidityProvider;
 
     // Dapp contract address to interest payment account (IPA)
     mapping(address => InterestPaymentAccount) public dappToIPA;
