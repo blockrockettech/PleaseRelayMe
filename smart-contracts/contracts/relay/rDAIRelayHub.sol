@@ -17,6 +17,11 @@ contract rDAIRelayHub is RelayHub {
         uint256 principleAmount
     );
 
+    struct IPAWithMetadata {
+        InterestPaymentAccount account;
+        address owner;
+    }
+
     IERC20 public DAI;
     IRToken public rDAI;
 
@@ -29,21 +34,20 @@ contract rDAIRelayHub is RelayHub {
     receive() external payable {}
 
     function setupDapp(address dapp, uint256 principleAmount) external {
+        require(dapp != address(0), "Invalid dapp address");
         require(address(dappToIPA[dapp]) == address(0), "An Interest Payment Account already exists for this dapp");
         require(DAI.allowance(msg.sender, address(this)) >= principleAmount, "Not enough DAI allowance");
+
         DAI.transferFrom(msg.sender, address(this), principleAmount);
 
         //---Counterfactually determine the deployment address of the dapp's Interest Payment Account (IPA)
         bytes32 salt = bytes32(keccak256(abi.encodePacked(dapp)));
-        address ipaAddress = address(bytes20(keccak256(abi.encodePacked(
-            byte(0xff),
-            address(this),
-            salt,
-            keccak256(abi.encodePacked(
-                type(InterestPaymentAccount).creationCode
-            ))
-        ))));
 
+        //---Use sugar over CREATE2 to instantiate the contract
+        InterestPaymentAccount ipa = new InterestPaymentAccount{salt: salt}();
+        dappToIPA[dapp] = ipa;
+
+        address ipaAddress = address(ipa);
         address[] memory participants = new address[](1);
         participants[0] = ipaAddress;
 
@@ -51,13 +55,6 @@ contract rDAIRelayHub is RelayHub {
         splits[0] = 100; // Need to do the real calculation which is equivalent of 100% of the interest generated
 
         rDAI.mintWithNewHat(principleAmount, participants, splits);
-
-        //---Use sugar over CREATE2 to counterfactually instantiate the contract:
-        InterestPaymentAccount ipa = new InterestPaymentAccount{salt: salt}();
-        require(ipaAddress == address(ipa), "Counterfactual address mismatch on instantiation of Interest Payment Account");
-
-        //---Store the counterfactual IPA in `dappToIPA` mapping
-        dappToIPA[dapp] = ipa;
 
         emit DappSetup(dapp, ipaAddress, msg.sender, principleAmount);
     }
