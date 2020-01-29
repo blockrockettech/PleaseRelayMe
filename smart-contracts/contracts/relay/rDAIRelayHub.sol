@@ -2,12 +2,13 @@ pragma solidity 0.6.2;
 
 import "../SafeMath.sol";
 import "../IERC20.sol";
+import "../ReentrancyGuard.sol";
 import "./RelayHub.sol";
 import "../rDAI/IRToken.sol";
 import "../liquidity/ILiquidityProvider.sol";
 import "./InterestPaymentAccount.sol";
 
-contract rDAIRelayHub is RelayHub {
+contract rDAIRelayHub is RelayHub, ReentrancyGuard {
     using SafeMath for uint256;
 
     event DappFunded(
@@ -25,12 +26,14 @@ contract rDAIRelayHub is RelayHub {
     // Dapp contract address to interest payment account (IPA)
     mapping(address => InterestPaymentAccount) public dappToIPA;
 
+    mapping(address => mapping(address => uint256)) public dappToFunderAndTheirPrinciple;
+
     uint256 public minimumDAIPrincipleAmount = 1*10**18;
 
     // Default payable
     receive() external payable {}
 
-    function fundDapp(address dapp, uint256 principleAmount) external {
+    function fundDapp(address dapp, uint256 principleAmount) external nonReentrant {
         require(dapp != address(0), "Invalid dapp address");
         require(principleAmount >= minimumDAIPrincipleAmount, "You need to offer at least the minimum principle amount");
         require(DAI.allowance(msg.sender, address(this)) >= principleAmount, "Not enough DAI allowance");
@@ -55,10 +58,12 @@ contract rDAIRelayHub is RelayHub {
 
         rDAI.mintWithNewHat(principleAmount, participants, splits);
 
+        dappToFunderAndTheirPrinciple[dapp][msg.sender] = principleAmount;
+
         emit DappFunded(dapp, ipaAddress, msg.sender, principleAmount);
     }
 
-    function refuelFor(address dapp) external {
+    function refuelFor(address dapp) external nonReentrant {
         InterestPaymentAccount ipa = dappToIPA[dapp];
 
         //---Check if there is any accrued interest with: ipa.accruedInterest()
