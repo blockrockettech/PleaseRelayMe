@@ -18,6 +18,9 @@ contract rDAIRelayHub is RelayHub {
     // Dapp contract address to interest payment account (IPA)
     mapping(address => InterestPaymentAccount) public dappToIPA;
 
+    // Default payable
+    receive() external payable { }
+
     function setupDapp(address dapp, uint256 principleAmount) external {
         DAI.transferFrom(msg.sender, address(this), principleAmount);
 
@@ -61,7 +64,16 @@ contract rDAIRelayHub is RelayHub {
             uint256 ethReceived = liquidityProvider.swapDAIToETH(daiBalance);
 
             //---Update ETH balance of dapp
-            balances[dapp] = balances[dapp].add(ethReceived);
+            _depositFromIPA(dapp, ethReceived, address(ipa));
         }
+    }
+
+    /**
+    * internal method implemented that mostly follows original depositFor from the RelayHub contract
+    */
+    function _depositFromIPA(address target, uint256 amount, address from) internal {
+        balances[target] = SafeMath.add(balances[target], amount);
+
+        emit Deposited(target, from, amount);
     }
 }
