@@ -10,17 +10,12 @@ import "./InterestPaymentAccount.sol";
 contract rDAIRelayHub is RelayHub {
     using SafeMath for uint256;
 
-    event DappSetup(
+    event DappFunded(
         address indexed dapp,
         address indexed ipa,
-        address indexed caller,
+        address indexed funder,
         uint256 principleAmount
     );
-
-    struct IPAWithMetadata {
-        InterestPaymentAccount account;
-        address owner;
-    }
 
     IERC20 public DAI;
     IRToken public rDAI;
@@ -30,24 +25,28 @@ contract rDAIRelayHub is RelayHub {
     // Dapp contract address to interest payment account (IPA)
     mapping(address => InterestPaymentAccount) public dappToIPA;
 
+    uint256 public minimumDAIPrincipleAmount = 1*10**18;
+
     // Default payable
     receive() external payable {}
 
-    function setupDapp(address dapp, uint256 principleAmount) external {
+    function fundDapp(address dapp, uint256 principleAmount) external {
         require(dapp != address(0), "Invalid dapp address");
-        require(address(dappToIPA[dapp]) == address(0), "An Interest Payment Account already exists for this dapp");
+        require(principleAmount >= minimumDAIPrincipleAmount, "You need to offer at least the minimum principle amount");
         require(DAI.allowance(msg.sender, address(this)) >= principleAmount, "Not enough DAI allowance");
 
+        // Bring in the principle
         DAI.transferFrom(msg.sender, address(this), principleAmount);
 
-        //---Counterfactually determine the deployment address of the dapp's Interest Payment Account (IPA)
-        bytes32 salt = bytes32(keccak256(abi.encodePacked(dapp)));
+        // If IPA not created for the dapp, create it
+        if(address(dappToIPA[dapp]) == address(0)) {
+            bytes32 create2Salt = bytes32(keccak256(abi.encodePacked(dapp)));
 
-        //---Use sugar over CREATE2 to instantiate the contract
-        InterestPaymentAccount ipa = new InterestPaymentAccount{salt: salt}();
-        dappToIPA[dapp] = ipa;
+            //---Use sugar over CREATE2 to instantiate the contract
+            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}();
+        }
 
-        address ipaAddress = address(ipa);
+        address ipaAddress = address(dappToIPA[dapp]);
         address[] memory participants = new address[](1);
         participants[0] = ipaAddress;
 
@@ -56,7 +55,7 @@ contract rDAIRelayHub is RelayHub {
 
         rDAI.mintWithNewHat(principleAmount, participants, splits);
 
-        emit DappSetup(dapp, ipaAddress, msg.sender, principleAmount);
+        emit DappFunded(dapp, ipaAddress, msg.sender, principleAmount);
     }
 
     function refuelFor(address dapp) external {
