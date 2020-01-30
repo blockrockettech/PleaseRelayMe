@@ -28,7 +28,15 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
 
     mapping(address => mapping(address => uint256)) public dappToFunderAndTheirPrinciple;
 
+    //---- Start basic threshold configuration section ----
+
+    // Currently set to 1 DAI
     uint256 public minimumDAIPrincipleAmount = 1*10**18;
+
+    // Currently set to 5 DAI
+    uint256 public minimumInterestAmountForRefuel = 5*10**18;
+
+    //---- End basic threshold configuration section ----
 
     // Default payable
     receive() external payable {}
@@ -63,7 +71,7 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         emit DappFunded(dapp, ipaAddress, msg.sender, principleAmount);
     }
 
-    function refuelFor(address dapp) external nonReentrant {
+    function _refuelFor(address dapp) internal nonReentrant {
         InterestPaymentAccount ipa = dappToIPA[dapp];
 
         //---Check if there is any accrued interest with: ipa.accruedInterest()
@@ -79,6 +87,35 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
             //---Update ETH balance of dapp
             _depositFromIPA(dapp, ethReceived, address(ipa));
         }
+    }
+
+    function relayCall(
+        address from,
+        address recipient,
+        bytes memory encodedFunction,
+        uint256 transactionFee,
+        uint256 gasPrice,
+        uint256 gasLimit,
+        uint256 nonce,
+        bytes memory signature,
+        bytes memory approvalData
+    ) public override {
+        if(maxPossibleCharge(gasLimit, gasPrice, transactionFee) <= balances[recipient]) {
+            // Attempt to top up dapp's balance from any accrued interest if applicable
+            _refuelFor(recipient);
+        }
+
+        super.relayCall(
+            from,
+            recipient,
+            encodedFunction,
+            transactionFee,
+            gasPrice,
+            gasLimit,
+            nonce,
+            signature,
+            approvalData
+        );
     }
 
     /**

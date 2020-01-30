@@ -267,7 +267,7 @@ contract RelayHub is IRelayHub {
         bytes memory signature,
         bytes memory approvalData
     )
-    public override
+    public override virtual
     {
         uint256 initialGas = gasleft();
 
