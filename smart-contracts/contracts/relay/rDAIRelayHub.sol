@@ -67,29 +67,22 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         address self = address(this);
         require(DAI.allowance(msg.sender, self) >= principleAmount, "Not enough DAI allowance");
 
-        // Bring in the principle
-        DAI.transferFrom(msg.sender, self, principleAmount);
-
         // If IPA not created for the dapp, create it
         if(address(dappToIPA[dapp]) == address(0)) {
             bytes32 create2Salt = bytes32(keccak256(abi.encodePacked(dapp)));
 
             //---Use sugar over CREATE2 to instantiate the contract
-            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}(self, rDAI, DAI);
+            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}(self, dapp, rDAI, DAI);
         }
 
-        address ipaAddress = address(dappToIPA[dapp]);
-        address[] memory participants = new address[](1);
-        participants[0] = ipaAddress;
+        InterestPaymentAccount ipa = dappToIPA[dapp];
+        address ipaAddress = address(ipa);
 
-        uint32[] memory splits = new uint32[](1);
-        splits[0] = 4294967295; // Needs to be equivalent of 100% of the interest generated
+        // Send the principle to the IPA
+        DAI.transferFrom(msg.sender, ipaAddress, principleAmount);
 
-        rDAI.mintWithNewHat(principleAmount, participants, splits);
-
-        // At this point, the assumption is that the contract has an rDAI balance and no DAI
-
-        dappToFunderAndTheirPrinciple[dapp][msg.sender] = principleAmount;
+        // Trigger the funding process in the IPA
+        ipa.fund(msg.sender, principleAmount);
 
         emit DappFunded(dapp, ipaAddress, msg.sender, principleAmount);
     }
