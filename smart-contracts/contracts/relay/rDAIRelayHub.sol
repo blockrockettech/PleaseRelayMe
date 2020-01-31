@@ -29,6 +29,12 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         uint256 reducedTo
     );
 
+    event DappRefuelled(
+        address indexed dapp,
+        uint256 daiProvidedFromInterest,
+        uint256 ethAdded
+    );
+
     IERC20 public DAI;
     IRToken public rDAI;
 
@@ -97,6 +103,8 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
 
             //---Update ETH balance of dapp
             _depositFromIPA(dapp, ethReceived, address(ipa));
+
+            emit DappRefuelled(dapp, interestReceivedInDAI, ethReceived);
         }
     }
 
