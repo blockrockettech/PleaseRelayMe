@@ -1,20 +1,45 @@
 pragma solidity 0.6.2;
 
+import "../SafeMath.sol";
 import "../IERC20.sol";
 import "../rDAI/IRToken.sol";
 import "../ReentrancyGuard.sol";
 
 // I.e. the IPA of a dapp
 contract InterestPaymentAccount is ReentrancyGuard {
+    using SafeMath for uint256;
+
+    event IPAFunded(
+        address indexed funder,
+        address indexed dapp,
+        address indexed relayHub,
+        uint256 principleAmount
+    );
+
+    event IPAFundingRemoved(
+        address indexed funder,
+        address indexed dapp,
+        address indexed relayHub,
+        uint256 originalPrincipleAmount
+    );
+
+    event IPAFundingReduced(
+        address indexed funder,
+        address indexed dapp,
+        address indexed relayHub,
+        uint256 originalPrincipleAmount,
+        uint256 reducedTo
+    );
+
     IRToken public rDAI;
     IERC20 public DAI;
 
     // ID for the interest distribution configuration in IRToken
-    uint256 hatID;
+    uint256 public hatID;
 
-    address relayHub;
+    address public relayHub;
 
-    address dapp;
+    address public dapp;
 
     mapping(address => uint256) public funderToPrinciple;
 
@@ -44,11 +69,47 @@ contract InterestPaymentAccount is ReentrancyGuard {
     function fund(address funder, uint256 principleAmount) external nonReentrant {
         funderToPrinciple[funder] = principleAmount;
 
-        rDAI.mint(principleAmount);
+        rDAI.mintWithSelectedHat(principleAmount, hatID);
 
         // At this point, the assumption is that the contract has an rDAI balance and no DAI
 
-        // todo emit ipa funded event
+        emit IPAFunded(funder, dapp, relayHub, principleAmount);
+    }
+
+    function removeAllDappFunding(address funder) external nonReentrant {
+        uint256 fundersPrinciple = funderToPrinciple[funder];
+        require(fundersPrinciple > 0, "You have not put down a principle for this dapp");
+
+        // Should not get here but sensible to check that our rDAI balance is greater than or eq to principle being refunded
+
+        funderToPrinciple[funder] = 0;
+
+        // Redeem the underlying DAI
+        rDAI.redeem(fundersPrinciple);
+
+        // Give the funder back their principle
+        DAI.transfer(funder, fundersPrinciple);
+
+        emit IPAFundingRemoved(funder, dapp, relayHub, fundersPrinciple);
+    }
+
+    function reduceDappFunding(address funder, uint256 reduceTo) external nonReentrant {
+        uint256 fundersPrinciple = funderToPrinciple[funder];
+        require(fundersPrinciple > reduceTo, "Either you have not put down a principle or your reduction is not less than original principle");
+
+        // Should not get here but sensible to check that our rDAI balance is greater than or eq to principle being refunded
+
+        funderToPrinciple[funder] = reduceTo;
+
+        uint256 amountToSendBack = fundersPrinciple.sub(reduceTo);
+
+        // Redeem the underlying DAI
+        rDAI.redeem(amountToSendBack);
+
+        // Give the funder back the DAI
+        DAI.transfer(funder, amountToSendBack);
+
+        emit IPAFundingReduced(funder, dapp, relayHub, fundersPrinciple, reduceTo);
     }
 
     function accruedInterest() external view returns (uint256) {

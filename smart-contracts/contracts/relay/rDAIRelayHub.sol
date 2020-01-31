@@ -20,14 +20,12 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
 
     event DappFundingRemoved(
         address indexed dapp,
-        address indexed funder,
-        uint256 originalPrincipleAmount
+        address indexed funder
     );
 
     event DappFundingReduced(
         address indexed dapp,
         address indexed funder,
-        uint256 originalPrincipleAmount,
         uint256 reducedTo
     );
 
@@ -38,8 +36,6 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
 
     // Dapp contract address to interest payment account (IPA)
     mapping(address => InterestPaymentAccount) public dappToIPA;
-
-    mapping(address => mapping(address => uint256)) public dappToFunderAndTheirPrinciple;
 
     //---- Start basic threshold configuration section ----
 
@@ -138,42 +134,18 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         require(dapp != address(0), "Invalid dapp address");
         require(address(dappToIPA[dapp]) != address(0), "The dapp has not been funded yet");
 
-        uint256 fundersPrinciple = dappToFunderAndTheirPrinciple[dapp][msg.sender];
-        require(fundersPrinciple > 0, "You have not put down a principle for this dapp");
+        dappToIPA[dapp].removeAllDappFunding(msg.sender);
 
-        // Should not get here but sensible to check that our rDAI balance is greater than or eq to principle being refunded
-
-        dappToFunderAndTheirPrinciple[dapp][msg.sender] = 0;
-
-        // Redeem the underlying DAI
-        rDAI.redeem(fundersPrinciple);
-
-        // Give the funder back their principle
-        DAI.transfer(msg.sender, fundersPrinciple);
-
-        emit DappFundingRemoved(dapp, msg.sender, fundersPrinciple);
+        emit DappFundingRemoved(dapp, msg.sender);
     }
 
     function reduceDappFunding(address dapp, uint256 reduceTo) external nonReentrant {
         require(dapp != address(0), "Invalid dapp address");
         require(address(dappToIPA[dapp]) != address(0), "The dapp has not been funded yet");
 
-        uint256 fundersPrinciple = dappToFunderAndTheirPrinciple[dapp][msg.sender];
-        require(fundersPrinciple > reduceTo, "Either you have not put down a principle or your reduction is not less than original principle");
+        dappToIPA[dapp].reduceDappFunding(msg.sender, reduceTo);
 
-        // Should not get here but sensible to check that our rDAI balance is greater than or eq to principle being refunded
-
-        dappToFunderAndTheirPrinciple[dapp][msg.sender] = reduceTo;
-
-        uint256 amountToSendBack = fundersPrinciple.sub(reduceTo);
-
-        // Redeem the underlying DAI
-        rDAI.redeem(amountToSendBack);
-
-        // Give the funder back the DAI
-        DAI.transfer(msg.sender, amountToSendBack);
-
-        emit DappFundingReduced(dapp, msg.sender, fundersPrinciple, reduceTo);
+        emit DappFundingReduced(dapp, msg.sender, reduceTo);
     }
 
     // ***
