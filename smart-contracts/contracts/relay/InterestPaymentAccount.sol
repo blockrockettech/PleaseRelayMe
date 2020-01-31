@@ -31,6 +31,12 @@ contract InterestPaymentAccount is ReentrancyGuard {
         uint256 reducedTo
     );
 
+    event InterestClaimed(
+        address indexed relayHub,
+        address indexed dapp,
+        uint256 interestPaid
+    );
+
     IRToken public rDAI;
     IERC20 public DAI;
 
@@ -66,7 +72,7 @@ contract InterestPaymentAccount is ReentrancyGuard {
         hatID = rDAI.createHat(participants, splits, true);
     }
 
-    function fund(address funder, uint256 principleAmount) external nonReentrant {
+    function fund(address funder, uint256 principleAmount) external onlyRelayHub nonReentrant {
         funderToPrinciple[funder] = principleAmount;
 
         rDAI.mintWithSelectedHat(principleAmount, hatID);
@@ -76,7 +82,7 @@ contract InterestPaymentAccount is ReentrancyGuard {
         emit IPAFunded(funder, dapp, relayHub, principleAmount);
     }
 
-    function removeAllDappFunding(address funder) external nonReentrant {
+    function removeAllDappFunding(address funder) external onlyRelayHub nonReentrant {
         uint256 fundersPrinciple = funderToPrinciple[funder];
         require(fundersPrinciple > 0, "You have not put down a principle for this dapp");
 
@@ -93,7 +99,7 @@ contract InterestPaymentAccount is ReentrancyGuard {
         emit IPAFundingRemoved(funder, dapp, relayHub, fundersPrinciple);
     }
 
-    function reduceDappFunding(address funder, uint256 reduceTo) external nonReentrant {
+    function reduceDappFunding(address funder, uint256 reduceTo) external onlyRelayHub nonReentrant {
         uint256 fundersPrinciple = funderToPrinciple[funder];
         require(fundersPrinciple > reduceTo, "Either you have not put down a principle or your reduction is not less than original principle");
 
@@ -116,13 +122,16 @@ contract InterestPaymentAccount is ReentrancyGuard {
         return rDAI.interestPayableOf(address(this));
     }
 
-    function claimInterest() onlyRelayHub external returns (bool) {
-        rDAI.payInterest(address(this));
+    function claimInterest() onlyRelayHub external {
+        address self = address(this);
+        uint256 interestPayable = rDAI.interestPayableOf(self);
 
-        rDAI.redeemAll();
+        rDAI.payInterest(self);
 
-        DAI.transfer(relayHub, DAI.balanceOf(address(this)));
+        rDAI.redeem(interestPayable);
 
-        return true;
+        DAI.transfer(relayHub, DAI.balanceOf(self));
+
+        emit InterestClaimed(relayHub, dapp, interestPayable);
     }
 }
