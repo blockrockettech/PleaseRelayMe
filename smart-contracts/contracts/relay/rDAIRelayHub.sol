@@ -38,6 +38,12 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
 
     //---- End basic threshold configuration section ----
 
+    constructor(IERC20 _DAI, IRToken _rDAI, ILiquidityProvider _liquidityProvider) public {
+        DAI = _DAI;
+        rDAI = _rDAI;
+        liquidityProvider = _liquidityProvider;
+    }
+
     // Default payable
     receive() external payable {}
 
@@ -74,8 +80,8 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
     function _refuelFor(address dapp) internal nonReentrant {
         InterestPaymentAccount ipa = dappToIPA[dapp];
 
-        //---Check if there is any accrued interest with: ipa.accruedInterest()
-        if(ipa.accruedInterest() > 0) {
+        //---Check if there is any accrued interest above minimumInterestAmountForRefuel
+        if(ipa.accruedInterest() > minimumInterestAmountForRefuel) {
             //---brings DAI into the relay hub from the IPA
             ipa.claimInterest();
 
@@ -122,8 +128,7 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
     * internal method implemented that mostly follows original depositFor from the RelayHub contract
     */
     function _depositFromIPA(address target, uint256 amount, address from) internal {
-        balances[target] = SafeMath.add(balances[target], amount);
-
+        balances[target] = balances[target].add(amount);
         emit Deposited(target, from, amount);
     }
 }
