@@ -68,7 +68,7 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         participants[0] = ipaAddress;
 
         uint32[] memory splits = new uint32[](1);
-        splits[0] = 100; // Need to do the real calculation which is equivalent of 100% of the interest generated
+        splits[0] = 4294967295; // Needs to be equivalent of 100% of the interest generated
 
         rDAI.mintWithNewHat(principleAmount, participants, splits);
 
