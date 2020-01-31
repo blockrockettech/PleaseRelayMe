@@ -75,7 +75,7 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
             bytes32 create2Salt = bytes32(keccak256(abi.encodePacked(dapp)));
 
             //---Use sugar over CREATE2 to instantiate the contract
-            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}(self);
+            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}(self, rDAI, DAI);
         }
 
         address ipaAddress = address(dappToIPA[dapp]);
@@ -98,9 +98,9 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         InterestPaymentAccount ipa = dappToIPA[dapp];
 
         //---Check if there is any accrued interest above minimumInterestAmountForRefuel
-        if(ipa.accruedInterest(rDAI) > minimumInterestAmountForRefuel) {
+        if(ipa.accruedInterest() > minimumInterestAmountForRefuel) {
             //---brings DAI into the relay hub from the IPA
-            ipa.claimInterest(rDAI, DAI);
+            ipa.claimInterest();
 
             //---Relay hub now has DAI so convert to ether!
             uint256 daiBalance = DAI.balanceOf(address(this));
