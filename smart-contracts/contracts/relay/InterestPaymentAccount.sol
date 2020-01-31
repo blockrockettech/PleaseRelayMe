@@ -73,7 +73,7 @@ contract InterestPaymentAccount is ReentrancyGuard {
     }
 
     function fund(address funder, uint256 principleAmount) external onlyRelayHub nonReentrant {
-        funderToPrinciple[funder] = principleAmount;
+        funderToPrinciple[funder] = funderToPrinciple[funder].add(principleAmount);
 
         rDAI.mintWithSelectedHat(principleAmount, hatID);
 
@@ -128,9 +128,10 @@ contract InterestPaymentAccount is ReentrancyGuard {
 
         rDAI.payInterest(self);
 
+        // Redeem underlying DAI asset
         rDAI.redeem(interestPayable);
 
-        DAI.transfer(relayHub, DAI.balanceOf(self));
+        DAI.transfer(relayHub, interestPayable);
 
         emit InterestClaimed(relayHub, dapp, interestPayable);
 

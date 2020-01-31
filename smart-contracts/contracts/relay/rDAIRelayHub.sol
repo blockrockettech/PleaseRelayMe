@@ -169,8 +169,8 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
     /**
     * internal method implemented that mostly follows original depositFor from the RelayHub contract
     */
-    function _depositFromIPA(address target, uint256 amount, address from) internal {
-        balances[target] = balances[target].add(amount);
-        emit Deposited(target, from, amount);
+    function _depositFromIPA(address dapp, uint256 amount, address from) internal {
+        balances[dapp] = balances[dapp].add(amount);
+        emit Deposited(dapp, from, amount);
     }
 }
