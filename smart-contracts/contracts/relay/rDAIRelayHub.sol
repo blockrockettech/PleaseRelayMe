@@ -21,7 +21,14 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
     event DappFundingRemoved(
         address indexed dapp,
         address indexed funder,
-        uint256 principleAmount
+        uint256 originalPrincipleAmount
+    );
+
+    event DappFundingReduced(
+        address indexed dapp,
+        address indexed funder,
+        uint256 originalPrincipleAmount,
+        uint256 reducedTo
     );
 
     IERC20 public DAI;
@@ -134,7 +141,6 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         );
     }
 
-    //TODO: withdraw
     function removeAllDappFunding(address dapp) external nonReentrant {
         require(dapp != address(0), "Invalid dapp address");
         require(address(dappToIPA[dapp]) != address(0), "The dapp has not been funded yet");
@@ -155,7 +161,27 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         emit DappFundingRemoved(dapp, msg.sender, fundersPrinciple);
     }
 
-    //todo: reduce funding
+    function reduceDappFunding(address dapp, uint256 reduceTo) external nonReentrant {
+        require(dapp != address(0), "Invalid dapp address");
+        require(address(dappToIPA[dapp]) != address(0), "The dapp has not been funded yet");
+
+        uint256 fundersPrinciple = dappToFunderAndTheirPrinciple[dapp][msg.sender];
+        require(fundersPrinciple > reduceTo, "Either you have not put down a principle or your reduction is not less than original principle");
+
+        // Should not get here but sensible to check that our rDAI balance is greater than or eq to principle being refunded
+
+        dappToFunderAndTheirPrinciple[dapp][msg.sender] = reduceTo;
+
+        uint256 amountToSendBack = fundersPrinciple.sub(reduceTo);
+
+        // Redeem the underlying DAI
+        rDAI.redeem(amountToSendBack);
+
+        // Give the funder back the DAI
+        DAI.transfer(msg.sender, amountToSendBack);
+
+        emit DappFundingReduced(dapp, msg.sender, fundersPrinciple, reduceTo);
+    }
 
     //TODO: flip
 
