@@ -183,7 +183,16 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         emit DappFundingReduced(dapp, msg.sender, fundersPrinciple, reduceTo);
     }
 
-    //TODO: flip
+    // ***
+    // Pseudo-code for the flipFunding() function
+    // ---
+    // This function would allow a dapp funder to direct / flip the interest being accrued towards another dapp
+    // i.e. they would stop funding one dapp and fund another with their interest.
+    // ---
+    // The basics of this involves updating the rDAI config for a dapp
+    // ***
+    // function flipFunding() external nonReentrant
+    //      TODO
 
     /**
     * internal method implemented that mostly follows original depositFor from the RelayHub contract
