@@ -50,17 +50,19 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
     function fundDapp(address dapp, uint256 principleAmount) external nonReentrant {
         require(dapp != address(0), "Invalid dapp address");
         require(principleAmount >= minimumDAIPrincipleAmount, "You need to offer at least the minimum principle amount");
-        require(DAI.allowance(msg.sender, address(this)) >= principleAmount, "Not enough DAI allowance");
+
+        address self = address(this);
+        require(DAI.allowance(msg.sender, self) >= principleAmount, "Not enough DAI allowance");
 
         // Bring in the principle
-        DAI.transferFrom(msg.sender, address(this), principleAmount);
+        DAI.transferFrom(msg.sender, self, principleAmount);
 
         // If IPA not created for the dapp, create it
         if(address(dappToIPA[dapp]) == address(0)) {
             bytes32 create2Salt = bytes32(keccak256(abi.encodePacked(dapp)));
 
             //---Use sugar over CREATE2 to instantiate the contract
-            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}();
+            dappToIPA[dapp] = new InterestPaymentAccount{salt: create2Salt}(self);
         }
 
         address ipaAddress = address(dappToIPA[dapp]);
@@ -81,9 +83,9 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         InterestPaymentAccount ipa = dappToIPA[dapp];
 
         //---Check if there is any accrued interest above minimumInterestAmountForRefuel
-        if(ipa.accruedInterest() > minimumInterestAmountForRefuel) {
+        if(ipa.accruedInterest(rDAI) > minimumInterestAmountForRefuel) {
             //---brings DAI into the relay hub from the IPA
-            ipa.claimInterest();
+            ipa.claimInterest(rDAI, DAI);
 
             //---Relay hub now has DAI so convert to ether!
             uint256 daiBalance = DAI.balanceOf(address(this));

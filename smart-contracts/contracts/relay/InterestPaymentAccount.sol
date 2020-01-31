@@ -4,9 +4,6 @@ import "../IERC20.sol";
 import "../rDAI/IRToken.sol";
 
 contract InterestPaymentAccount {
-    IERC20 public DAI;
-    IRToken public rDAI;
-
     address relayHub;
 
     modifier onlyRelayHub() {
@@ -14,16 +11,20 @@ contract InterestPaymentAccount {
         _;
     }
 
-    function accruedInterest() external view returns (uint256) {
-        return rDAI.interestPayableOf(address(this));
+    constructor(address _relayHub) public {
+        relayHub = _relayHub;
     }
 
-    function claimInterest() onlyRelayHub external returns (bool) {
-        rDAI.payInterest(address(this));
+    function accruedInterest(IRToken _rDAI) external view returns (uint256) {
+        return _rDAI.interestPayableOf(address(this));
+    }
 
-        rDAI.redeemAll();
+    function claimInterest(IRToken _rDAI, IERC20 _DAI) onlyRelayHub external returns (bool) {
+        _rDAI.payInterest(address(this));
 
-        DAI.transfer(relayHub, DAI.balanceOf(address(this)));
+        _rDAI.redeemAll();
+
+        _DAI.transfer(relayHub, _DAI.balanceOf(address(this)));
 
         return true;
     }
