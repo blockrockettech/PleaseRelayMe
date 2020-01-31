@@ -18,6 +18,12 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         uint256 principleAmount
     );
 
+    event DappFundingRemoved(
+        address indexed dapp,
+        address indexed funder,
+        uint256 principleAmount
+    );
+
     IERC20 public DAI;
     IRToken public rDAI;
 
@@ -74,6 +80,8 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
 
         rDAI.mintWithNewHat(principleAmount, participants, splits);
 
+        // At this point, the assumption is that the contract has an rDAI balance and no DAI
+
         dappToFunderAndTheirPrinciple[dapp][msg.sender] = principleAmount;
 
         emit DappFunded(dapp, ipaAddress, msg.sender, principleAmount);
@@ -125,6 +133,31 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
             approvalData
         );
     }
+
+    //TODO: withdraw
+    function removeAllDappFunding(address dapp) external nonReentrant {
+        require(dapp != address(0), "Invalid dapp address");
+        require(address(dappToIPA[dapp]) != address(0), "The dapp has not been funded yet");
+
+        uint256 fundersPrinciple = dappToFunderAndTheirPrinciple[dapp][msg.sender];
+        require(fundersPrinciple > 0, "You have not put down a principle for this dapp");
+
+        // Should not get here but sensible to check that our rDAI balance is greater than or eq to principle being refunded
+
+        dappToFunderAndTheirPrinciple[dapp][msg.sender] = 0;
+
+        // Redeem the underlying DAI
+        rDAI.redeem(fundersPrinciple);
+
+        // Give the funder back their principle
+        DAI.transfer(msg.sender, fundersPrinciple);
+
+        emit DappFundingRemoved(dapp, msg.sender, fundersPrinciple);
+    }
+
+    //todo: reduce funding
+
+    //TODO: flip
 
     /**
     * internal method implemented that mostly follows original depositFor from the RelayHub contract
