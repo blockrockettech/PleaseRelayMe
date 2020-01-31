@@ -122,7 +122,7 @@ contract InterestPaymentAccount is ReentrancyGuard {
         return rDAI.interestPayableOf(address(this));
     }
 
-    function claimInterest() onlyRelayHub external {
+    function claimInterest() onlyRelayHub external returns (uint256) {
         address self = address(this);
         uint256 interestPayable = rDAI.interestPayableOf(self);
 
@@ -133,5 +133,7 @@ contract InterestPaymentAccount is ReentrancyGuard {
         DAI.transfer(relayHub, DAI.balanceOf(self));
 
         emit InterestClaimed(relayHub, dapp, interestPayable);
+
+        return interestPayable;
     }
 }

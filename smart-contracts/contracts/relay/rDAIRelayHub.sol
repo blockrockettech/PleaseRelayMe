@@ -89,12 +89,11 @@ contract rDAIRelayHub is RelayHub, ReentrancyGuard {
         //---Check if there is any accrued interest above minimumInterestAmountForRefuel
         if(ipa.accruedInterest() > minimumInterestAmountForRefuel) {
             //---brings DAI into the relay hub from the IPA
-            ipa.claimInterest();
+            uint256 interestReceivedInDAI = ipa.claimInterest();
 
             //---Relay hub now has DAI so convert to ether!
-            uint256 daiBalance = DAI.balanceOf(address(this));
-            DAI.approve(address(liquidityProvider), daiBalance);
-            uint256 ethReceived = liquidityProvider.swapDAIToETH(daiBalance);
+            DAI.approve(address(liquidityProvider), interestReceivedInDAI);
+            uint256 ethReceived = liquidityProvider.swapDAIToETH(interestReceivedInDAI);
 
             //---Update ETH balance of dapp
             _depositFromIPA(dapp, ethReceived, address(ipa));
